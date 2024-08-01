@@ -5,6 +5,7 @@ import bcrypt from "bcrypt";
 import Jwt from "jsonwebtoken";
 import config from "config";
 import { NewRequest } from "../middlewares/verify.middleware";
+import { User } from "../models";
 
 const secretkey = String(config.get("SecretKey"));
 const userservice = new userservices();
@@ -86,10 +87,23 @@ export class usercontrolleres {
             id: newuser.data._id,
             role: newuser.data.role,
           },
-          secretkey
+          secretkey,
+          {
+            expiresIn: "24h",
+          }
         );
-        if (token) {
+        const refreshtoken = Jwt.sign(
+          {
+            id: newuser.data._id,
+          },
+          secretkey,
+          {
+            expiresIn: "7d",
+          }
+        );
+        if (token && refreshtoken) {
           newuser.token = token;
+          newuser.refreshtoken = refreshtoken;
           res.status(200).json(newuser);
         } else {
           res.status(500).json({ message: "Error generating token" });
@@ -101,6 +115,54 @@ export class usercontrolleres {
       res
         .status(error.status)
         .json({ message: error.message, status: error.status });
+    }
+  }
+
+  async refreshToken(req: Request, res: Response) {
+    try {
+      const { refreshtoken } = req.body;
+      if (refreshtoken) {
+        const decoded: any = await Jwt.verify(refreshtoken, secretkey);
+        console.log(decoded)
+        if (decoded) {
+          const id = decoded.id;
+          const userdata = await User.findOne({ _id: id });
+          if (userdata) {
+            const token = await Jwt.sign(
+              {
+                id: userdata._id,
+                role: userdata.role,
+              },
+              secretkey,
+              {
+                expiresIn: "1m",
+              }
+            );
+            return res.status(200).json({ token: token, status: true });
+          } else {
+            return res
+              .status(401)
+              .json({ message: "User not found", status: false });
+          }
+        } else {
+          return res
+            .status(401)
+            .json({ message: "Invalid refresh token", status: false });
+        }
+      } else {
+        return res
+          .status(401)
+          .json({ message: "Refresh token is required", status: false });
+      }
+    } catch (error) {
+      if(error.message === "jwt expired"){
+        return res
+         .status(401)
+         .json({ message: "Refresh token has expired please Login", status: false });
+      }else{
+
+        res.status(401).json({ error: error.message, status: false });
+      }
     }
   }
 }

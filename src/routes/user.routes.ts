@@ -9,6 +9,8 @@ router.post("/user/create", usercontroller.createuser);
 
 router.post("/user/loginuser", usercontroller.loginuser);
 
+router.post("/token/refreshtoken", usercontroller.refreshToken);
+
 router.get(
   "/user/getuser",
   authMiddleware,

@@ -26,7 +26,10 @@ const authMiddleware = async (
     // console.log(req.user);
     next();
   } catch (err) {
-    res.status(401).json({ message: "Token is not valid" });
+    if(err.name === 'TokenExpiredError'){
+      return res.status(401).json({ message: "Token expired. Please log in again.", status: false });
+    }
+    res.status(401).json({ message: "Token is not valid", status: false });
   }
 };
 const checkPermission = (role: string, action: string) => {
@@ -38,11 +41,12 @@ const checkPermission = (role: string, action: string) => {
       } else {
         return res.status(403).json({
           message: "You do not have permission to access this route!",
+          status: false,
         });
       }
     }
 
-    return res.status(403).json({ message: "Forbidden" });
+    return res.status(403).json({ message: "Forbidden", status: false });
   };
 };
 
